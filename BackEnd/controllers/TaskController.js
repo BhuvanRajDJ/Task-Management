@@ -1,63 +1,95 @@
 const TaskModel = require("../models/TaskModels");
 
-const fetchTask = async (req, res) => {
+/**
+ * Fetch all tasks from database
+ */
+const fetchTask = async (req, res, next) => {
   try {
     const data = await TaskModel.find({});
-    res.status(200).json({ message: "All Tasks", success: true, data });
+    res.status(200).json({ 
+      success: true, 
+      message: "All Tasks fetched successfully", 
+      data 
+    });
   } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to fetch the tasks", success: false });
+    err.message = "Failed to fetch tasks";
+    err.statusCode = 500;
+    next(err);
   }
 };
 
-const createTask = async (req, res) => {
-  const data = req.body;
+/**
+ * Create a new task
+ */
+const createTask = async (req, res, next) => {
   try {
-    const model = TaskModel(data);
-    await model.save();
-    res.status(201).json({ message: "Task is Created", success: true });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create a task", success: false, error: error });
+    const model = new TaskModel(req.body);
+    const savedTask = await model.save();
+    res.status(201).json({ 
+      success: true, 
+      message: "Task created successfully", 
+      data: savedTask 
+    });
+  } catch (err) {
+    err.message = "Failed to create task";
+    err.statusCode = 500;
+    next(err);
   }
 };
 
-const updateTask = async (req, res) => {
+/**
+ * Update an existing task by ID
+ */
+const updateTask = async (req, res, next) => {
   try {
     const id = req.params.id;
     const body = req.body;
+    
+    // Check if task exists first
+    const task = await TaskModel.findById(id);
+    if (!task) {
+      const err = new Error("Task not found");
+      err.statusCode = 404;
+      return next(err);
+    }
+
     const obj = { $set: { ...body } };
-    const data = await TaskModel.findByIdAndUpdate(id, obj);
-    res.status(200).json({ message: "Updated tasks", success: true });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to update the task", success: false });
+    const updatedTask = await TaskModel.findByIdAndUpdate(id, obj, { new: true });
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Task updated successfully", 
+      data: updatedTask 
+    });
+  } catch (err) {
+    err.message = "Failed to update the task";
+    err.statusCode = 500;
+    next(err);
   }
 };
 
-// const
-
-const deleteTask = async (req, res) => {
+/**
+ * Delete a task by ID
+ */
+const deleteTask = async (req, res, next) => {
   try {
     const id = req.params.id;
-    // const body = req.body;
     const data = await TaskModel.deleteOne({ _id: id });
-    // const data = await TaskModel.findByIdAndDelete({_id:id});
+    
     if (data.deletedCount === 0) {
-      return res
-        .status(400)
-        .json({ message: "No task found to delete", success: false });
+      const err = new Error("No task found to delete");
+      err.statusCode = 404;
+      return next(err);
     }
-    res
-      .status(200)
-      .json({ message: "Task deleted successfully", success: true});
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to delete the task", success: false });
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Task deleted successfully" 
+    });
+  } catch (err) {
+    err.message = "Failed to delete the task";
+    err.statusCode = 500;
+    next(err);
   }
 };
 
